@@ -7,8 +7,24 @@ import os
 from dotenv import load_dotenv
 from mistralai import Mistral
 
-# Load environment variables
+# Load environment variables from .env file (for local development)
 load_dotenv()
+
+def get_api_key():
+    """
+    Get API key from environment.
+    Tries Streamlit secrets first, then .env file, then environment variables.
+    """
+    try:
+        # Try Streamlit secrets (for Streamlit Cloud)
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'MISTRAL_API_KEY' in st.secrets:
+            return st.secrets['MISTRAL_API_KEY']
+    except (ImportError, AttributeError):
+        pass
+    
+    # Fallback to .env file or environment variables
+    return os.getenv("MISTRAL_API_KEY")
 
 class BankingBot:
     """
@@ -18,11 +34,12 @@ class BankingBot:
     
     def __init__(self):
         """Initialize the banking bot with Mistral API client"""
-        api_key = os.getenv("MISTRAL_API_KEY")
+        api_key = get_api_key()
         if not api_key:
             raise ValueError(
-                "MISTRAL_API_KEY not found. Please create a .env file "
-                "with your Mistral API key. See .env.example for format."
+                "MISTRAL_API_KEY not found. Please:\n"
+                "- For local development: Create a .env file with MISTRAL_API_KEY\n"
+                "- For Streamlit Cloud: Add MISTRAL_API_KEY to Secrets in the dashboard"
             )
         
         self.client = Mistral(api_key=api_key)
