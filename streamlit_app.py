@@ -4,8 +4,11 @@ Deploy to Streamlit Cloud for free hosting
 """
 
 import streamlit as st
-from banking_bot import BankingBot
 import os
+from dotenv import load_dotenv
+
+# Load local environment variables
+load_dotenv()
 
 # Page configuration
 st.set_page_config(
@@ -27,10 +30,56 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Get API Key function
+def get_api_key():
+    """Get API key from Streamlit secrets or environment"""
+    # Try Streamlit secrets first (for Streamlit Cloud)
+    try:
+        if 'MISTRAL_API_KEY' in st.secrets:
+            return st.secrets['MISTRAL_API_KEY']
+    except Exception as e:
+        st.warning(f"Could not read Streamlit secrets: {e}")
+    
+    # Fall back to environment variables
+    api_key = os.getenv('MISTRAL_API_KEY')
+    if api_key:
+        return api_key
+    
+    return None
+
+# Check API Key early
+api_key = get_api_key()
+
+if not api_key:
+    st.error("""
+    ### ⚠️ MISTRAL_API_KEY Not Found
+    
+    **You need to add your API key to Streamlit Cloud:**
+    
+    1. Click the **☰ menu** (top right)
+    2. Go to **Settings** → **Secrets**
+    3. Add this line:
+    ```
+    MISTRAL_API_KEY = "3Gvc8k5dxnRxSNa2l9PsyWYpYkyCiRhI"
+    ```
+    4. Click **Save** and wait for restart
+    
+    **OR for local testing:**
+    
+    Create `.streamlit/secrets.toml` with:
+    ```
+    MISTRAL_API_KEY = "3Gvc8k5dxnRxSNa2l9PsyWYpYkyCiRhI"
+    ```
+    """)
+    st.stop()
+
+# Now import BankingBot after we know we have the API key
+from banking_bot import BankingBot
+
 # Initialize session state
 if "bot" not in st.session_state:
     try:
-        st.session_state.bot = BankingBot()
+        st.session_state.bot = BankingBot(api_key=api_key)
         st.session_state.bot_ready = True
     except Exception as e:
         st.session_state.bot_ready = False

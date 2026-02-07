@@ -13,26 +13,10 @@ except ImportError:
     try:
         from mistralai.client import MistralClient as Mistral
     except ImportError:
-        raise ImportError("Could not import Mistral. Please check mistralai package installation.")
+        raise ImportError("Could not import Mistral. Please install: pip install mistralai")
 
 # Load environment variables from .env file (for local development)
 load_dotenv()
-
-def get_api_key():
-    """
-    Get API key from environment.
-    Tries Streamlit secrets first, then .env file, then environment variables.
-    """
-    try:
-        # Try Streamlit secrets (for Streamlit Cloud)
-        import streamlit as st
-        if hasattr(st, 'secrets') and 'MISTRAL_API_KEY' in st.secrets:
-            return st.secrets['MISTRAL_API_KEY']
-    except (ImportError, AttributeError):
-        pass
-    
-    # Fallback to .env file or environment variables
-    return os.getenv("MISTRAL_API_KEY")
 
 class BankingBot:
     """
@@ -40,17 +24,23 @@ class BankingBot:
     while strictly adhering to banking and data privacy regulations.
     """
     
-    def __init__(self):
+    def __init__(self, api_key=None):
         """Initialize the banking bot with Mistral API client"""
-        api_key = get_api_key()
+        # Use provided API key or get from environment
+        if not api_key:
+            api_key = os.getenv("MISTRAL_API_KEY")
+        
         if not api_key:
             raise ValueError(
-                "MISTRAL_API_KEY not found. Please:\n"
-                "- For local development: Create a .env file with MISTRAL_API_KEY\n"
-                "- For Streamlit Cloud: Add MISTRAL_API_KEY to Secrets in the dashboard"
+                "MISTRAL_API_KEY not provided. "
+                "Please set it in environment or pass it to BankingBot(api_key='...')"
             )
         
-        self.client = Mistral(api_key=api_key)
+        try:
+            self.client = Mistral(api_key=api_key)
+        except Exception as e:
+            raise ValueError(f"Failed to initialize Mistral client: {str(e)}")
+        
         self.model = "mistral-large-latest"
         
         # System prompt that defines bot behavior
