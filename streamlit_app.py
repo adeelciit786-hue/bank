@@ -5,12 +5,13 @@ Deploy to Streamlit Cloud for free hosting
 
 import streamlit as st
 import os
+import sys
 from dotenv import load_dotenv
 
 # Load local environment variables
 load_dotenv()
 
-# Page configuration
+# Streamlit page configuration
 st.set_page_config(
     page_title="Banking Assistant",
     page_icon="🏦",
@@ -30,50 +31,79 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Get API Key function
-def get_api_key():
-    """Get API key from Streamlit secrets or environment"""
-    # Try Streamlit secrets first (for Streamlit Cloud)
-    try:
-        if 'MISTRAL_API_KEY' in st.secrets:
-            return st.secrets['MISTRAL_API_KEY']
-    except Exception as e:
-        st.warning(f"Could not read Streamlit secrets: {e}")
-    
-    # Fall back to environment variables
+# IMPORTANT: Get API Key BEFORE importing BankingBot
+api_key = None
+
+# Method 1: Try Streamlit Secrets (for Streamlit Cloud)
+try:
+    if hasattr(st, 'secrets'):
+        # Debug: Show available secrets
+        secrets_dict = dict(st.secrets) if st.secrets else {}
+        
+        # Look for the key (case-insensitive check)
+        for key in secrets_dict:
+            if key.upper() == 'MISTRAL_API_KEY':
+                api_key = secrets_dict[key]
+                break
+        
+        # If not found, try exact match
+        if not api_key and 'MISTRAL_API_KEY' in st.secrets:
+            api_key = st.secrets['MISTRAL_API_KEY']
+except Exception as e:
+    pass
+
+# Method 2: Fallback to environment variables
+if not api_key:
     api_key = os.getenv('MISTRAL_API_KEY')
-    if api_key:
-        return api_key
-    
-    return None
 
-# Check API Key early
-api_key = get_api_key()
+# Method 3: Check .streamlit/secrets.toml directly
+if not api_key:
+    try:
+        import toml
+        secrets_file = '.streamlit/secrets.toml'
+        if os.path.exists(secrets_file):
+            with open(secrets_file, 'r') as f:
+                secrets_data = toml.load(f)
+                api_key = secrets_data.get('MISTRAL_API_KEY')
+    except:
+        pass
 
+# If still no API key, show detailed error
 if not api_key:
     st.error("""
     ### ⚠️ MISTRAL_API_KEY Not Found
     
-    **You need to add your API key to Streamlit Cloud:**
+    **Make sure the secret name is EXACTLY: `MISTRAL_API_KEY` (all uppercase)**
     
-    1. Click the **☰ menu** (top right)
-    2. Go to **Settings** → **Secrets**
-    3. Add this line:
+    **Steps to fix:**
+    
+    1. Click the **☰ menu** (top right) → **Settings**
+    2. Click **Secrets** in the left sidebar
+    3. Delete any existing secret with wrong name
+    4. **Add EXACTLY this** (copy-paste):
+    
     ```
     MISTRAL_API_KEY = "3Gvc8k5dxnRxSNa2l9PsyWYpYkyCiRhI"
     ```
-    4. Click **Save** and wait for restart
     
-    **OR for local testing:**
+    **⚠️ Important:** Use `MISTRAL_API_KEY` (all caps), NOT `Mistral_API_KEY`
+    
+    5. Click **Save**
+    6. Wait 30 seconds for restart
+    7. Refresh the page (F5)
+    
+    ---
+    
+    **For local testing:**
     
     Create `.streamlit/secrets.toml` with:
-    ```
+    ```toml
     MISTRAL_API_KEY = "3Gvc8k5dxnRxSNa2l9PsyWYpYkyCiRhI"
     ```
     """)
     st.stop()
 
-# Now import BankingBot after we know we have the API key
+# Now safe to import BankingBot
 from banking_bot import BankingBot
 
 # Initialize session state
