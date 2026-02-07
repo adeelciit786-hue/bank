@@ -5,7 +5,15 @@ Uses Mistral Large Model for accurate and secure banking support
 
 import os
 from dotenv import load_dotenv
-from mistralai import Mistral
+
+# Try to import Mistral - handle different versions
+try:
+    from mistralai import Mistral
+except ImportError:
+    try:
+        from mistralai.client import MistralClient as Mistral
+    except ImportError:
+        raise ImportError("Could not import Mistral. Please check mistralai package installation.")
 
 # Load environment variables from .env file (for local development)
 load_dotenv()
@@ -100,11 +108,19 @@ When users ask for sensitive information, respond with:
                 *self.conversation_history
             ]
             
-            # Call Mistral API
-            response = self.client.chat.complete(
-                model=self.model,
-                messages=messages
-            )
+            # Call Mistral API with flexible method handling
+            try:
+                # Try new API style
+                response = self.client.chat.complete(
+                    model=self.model,
+                    messages=messages
+                )
+            except AttributeError:
+                # Fallback to old API style
+                response = self.client.chat(
+                    model=self.model,
+                    messages=messages
+                )
             
             # Extract and store assistant response
             bot_response = response.choices[0].message.content
